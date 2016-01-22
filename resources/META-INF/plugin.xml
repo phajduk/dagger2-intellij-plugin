@@ -30,7 +30,7 @@
 
   <actions>
     <!-- Add your actions here -->
-    <action id="Dagger2Plugin.GenerateInjectConstructor" class="net.pawelhajduk.GenerateInjectedConstructor" text="GenerateInjectedConstructor"
+    <action id="Dagger2Plugin.GenerateInjectConstructor" class="net.pawelhajduk.GenerateInjectedConstructor" text="ConstructorJsr330"
             description="Generates constructor with @Inject annotation">
       <add-to-group group-id="JavaGenerateGroup1" anchor="after" relative-to-action="GenerateConstructor"/>
     </action>
