@@ -34,6 +34,10 @@
             description="Generates constructor with @Inject annotation">
       <add-to-group group-id="JavaGenerateGroup1" anchor="after" relative-to-action="GenerateConstructor"/>
     </action>
+    <action id="Dagger2Plugin.GenerateModuleClass" class="net.pawelhajduk.GenerateModuleClassAction" text="DaggerModule"
+            description="Generates Dagger @Module">
+      <add-to-group group-id="NewGroup1" anchor="after" relative-to-action="NewClass"/>
+    </action>
   </actions>
 
 </idea-plugin>
