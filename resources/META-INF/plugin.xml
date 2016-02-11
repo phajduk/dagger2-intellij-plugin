@@ -38,6 +38,14 @@
             description="Generates Dagger @Module">
       <add-to-group group-id="NewGroup1" anchor="after" relative-to-action="NewClass"/>
     </action>
+    <action id="Dagger2Plugin.GenerateComponent" class="net.pawelhajduk.GenerateComponentAction" text="DaggerComponent"
+            description="Generates Dagger @Component">
+      <add-to-group group-id="NewGroup1" anchor="after" relative-to-action="Dagger2Plugin.GenerateModuleClass"/>
+    </action>
+    <action id="Dagger2Plugin.TestAction" class="net.pawelhajduk.TestAction" text="DaggerTestAction"
+            description="test action">
+      <add-to-group group-id="NewGroup1" anchor="after" relative-to-action="Dagger2Plugin.GenerateComponent"/>
+    </action>
   </actions>
 
 </idea-plugin>
