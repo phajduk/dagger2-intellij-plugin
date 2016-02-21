@@ -3,12 +3,6 @@ package net.pawelhajduk;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiEnumConstant;
-import com.intellij.psi.PsiMember;
-import com.intellij.refactoring.RefactoringBundle;
-import com.intellij.refactoring.ui.MemberSelectionPanel;
-import com.intellij.refactoring.util.classMembers.MemberInfo;
-import com.intellij.refactoring.util.classMembers.MemberInfoStorage;
 import java.awt.BorderLayout;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 public class SelectModulesDialog extends DialogWrapper {
 
     private List<PsiClass> classes;
+    private List<TypeInfo> typeInfos;
 
     protected SelectModulesDialog(@Nullable Project project, List<PsiClass> classes) {
         super(project);
@@ -35,30 +30,12 @@ public class SelectModulesDialog extends DialogWrapper {
     @Override
     protected JComponent createCenterPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        List<TypeInfo> typeInfos = createTypeInfos();
+        typeInfos = createTypeInfos();
         final TypeSelectionPanel typeSelectionPanel = new TypeSelectionPanel("Select modules for component",
                 typeInfos);
-//        final MemberSelectionPanel memberSelectionPanel = createTestingMembersPanel();
-//        panel.add(memberSelectionPanel, BorderLayout.CENTER);
         panel.add(typeSelectionPanel, BorderLayout.CENTER);
         return panel;
     }
-
-    @NotNull
-    private MemberSelectionPanel createTestingMembersPanel() {
-        MemberInfoStorage memberInfoStorage = new MemberInfoStorage(classes.get(0), new MemberInfo.Filter<PsiMember>() {
-            public boolean includeMember(PsiMember element) {
-                return !(element instanceof PsiEnumConstant);
-            }
-        });
-        List<MemberInfo> members = memberInfoStorage.getClassMemberInfos(classes.get(0));
-
-        return new MemberSelectionPanel(
-                RefactoringBundle.message("members.to.be.pushed.down.panel.title"),
-                members,
-                RefactoringBundle.message("keep.abstract.column.header"));
-    }
-
 
     @NotNull
     @Override
@@ -66,6 +43,11 @@ public class SelectModulesDialog extends DialogWrapper {
         return new Action[]{getOKAction(), getCancelAction()};
     }
 
+    @Override
+    protected void doOKAction() {
+        super.doOKAction();
+
+    }
 
     private List<TypeInfo> createTypeInfos() {
         List<TypeInfo> result = new ArrayList<>();
@@ -77,6 +59,10 @@ public class SelectModulesDialog extends DialogWrapper {
 
     private TypeInfo createFromClass(PsiClass aClass) {
         return new TypeInfo(aClass);
+    }
+
+    public List<TypeInfo> getTypeInfos() {
+        return typeInfos;
     }
 }
 

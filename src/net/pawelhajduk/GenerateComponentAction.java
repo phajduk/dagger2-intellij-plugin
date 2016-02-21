@@ -1,59 +1,67 @@
 package net.pawelhajduk;
 
-import com.intellij.CommonBundle;
 import com.intellij.ide.IdeView;
-import com.intellij.ide.util.PropertiesComponent;
+import com.intellij.ide.actions.CreateFileAction;
+import com.intellij.ide.fileTemplates.FileTemplate;
+import com.intellij.ide.fileTemplates.FileTemplateManager;
+import com.intellij.ide.fileTemplates.FileTemplateUtil;
+import com.intellij.ide.fileTemplates.JavaTemplateUtil;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.LangDataKeys;
-import com.intellij.openapi.actionSystem.Presentation;
-import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.fileEditor.FileDocumentManager;
-import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.command.CommandProcessor;
+import com.intellij.openapi.command.undo.UndoUtil;
+import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Ref;
-import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.util.Computable;
+import com.intellij.psi.JavaPsiFacade;
+import com.intellij.psi.PsiAnnotation;
+import com.intellij.psi.PsiAnnotationParameterList;
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiNameIdentifierOwner;
+import com.intellij.psi.PsiNameValuePair;
+import com.intellij.psi.codeStyle.JavaCodeStyleManager;
+import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.search.SearchScope;
+import com.intellij.psi.search.searches.AllClassesSearch;
 import com.intellij.util.PlatformIcons;
-import java.util.Map;
+import com.intellij.util.Query;
+import java.util.ArrayList;
+import java.util.List;
+import net.pawelhajduk.component.TypeInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class GenerateComponentAction extends AnAction implements DumbAware {
+
     public GenerateComponentAction() {
         super("Create component", null, PlatformIcons.INTERFACE_ICON);
     }
 
     @Override
     public void actionPerformed(AnActionEvent e) {
+        List<PsiClass> modulesClasses = extractDagger2ModulesPsiClasses(e);
+        SelectModulesDialog dg = new SelectModulesDialog(e.getProject(), modulesClasses);
 
-    }
-/*
-    //todo append $END variable to templates?
-    public static void moveCaretAfterNameIdentifier(PsiNameIdentifierOwner createdElement) {
-        final Project project = createdElement.getProject();
-        final Editor editor = FileEditorManager.getInstance(project).getSelectedTextEditor();
-        if (editor != null) {
-            final VirtualFile virtualFile = createdElement.getContainingFile().getVirtualFile();
-            if (virtualFile != null) {
-                if (FileDocumentManager.getInstance().getDocument(virtualFile) == editor.getDocument()) {
-                    final PsiElement nameIdentifier = createdElement.getNameIdentifier();
-                    if (nameIdentifier != null) {
-                        editor.getCaretModel().moveToOffset(nameIdentifier.getTextRange().getEndOffset());
-                    }
-                }
+        if (!dg.showAndGet()) {
+            return;
+        }
+
+        List<PsiClass> componentModules = new ArrayList<>();
+        List<TypeInfo> typeInfos = dg.getTypeInfos();
+        for (TypeInfo typeInfo : typeInfos) {
+            if (typeInfo.isChecked()) {
+                PsiClass typeObject = typeInfo.getTypeObject();
+                componentModules.add(typeObject);
             }
         }
-    }
 
-    @Override
-    public final void actionPerformed(final AnActionEvent e) {
         final DataContext dataContext = e.getDataContext();
 
         final IdeView view = LangDataKeys.IDE_VIEW.getData(dataContext);
@@ -66,87 +74,76 @@ public class GenerateComponentAction extends AnAction implements DumbAware {
         final PsiDirectory dir = view.getOrChooseDirectory();
         if (dir == null || project == null) return;
 
-        final SelectModulesDialog.Builder builder = SelectModulesDialog.createDialog(project);
-        buildDialog(project, dir, builder);
+//        PsiClass createdComponentClass = JavaDirectoryService.getInstance().createClass(dir, "NewComponent", JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME, false);
+        PsiClass createdComponentClass = (PsiClass) doCreate(dir, "NewComponent", project, componentModules);
+        final PsiFile createdComponentFile =
+                createdComponentClass.getContainingFile();
 
-        final Ref<String> selectedTemplateName = Ref.create(null);
-        final PsiFile createdElement =
-                builder.show(getErrorTitle(), getDefaultTemplateName(dir), new SelectModulesDialog.FileCreator<PsiFile>() {
 
+//        createdComponentClass.getModifierList().addAnnotation("Module({Test.class})");
+//        createdComponentClass.getModifierList().addAnnotation("Module");
+    }
+
+    @NotNull
+    private List<PsiClass> extractDagger2ModulesPsiClasses(AnActionEvent e) {
+        DaggerModuleClassFilter filter = new DaggerModuleClassFilter();
+        final Module module = LangDataKeys.MODULE.getData(e.getDataContext());
+        SearchScope scope = GlobalSearchScope.moduleScope(module);
+        Query<PsiClass> search = AllClassesSearch.search(scope, e.getProject());
+        List<PsiClass> modulesClasses = new ArrayList<>();
+        for (PsiClass psiClass : search.findAll()) {
+            if (filter.isAccepted(psiClass)) {
+                modulesClasses.add(psiClass);
+            }
+        }
+        return modulesClasses;
+    }
+
+    private PsiElement doCreate(PsiDirectory myDirectory, @Nullable String fileName, Project project, List<PsiClass> componentModules) {
+        FileTemplate myTemplate = FileTemplateManager.getInstance(project).getInternalTemplate(JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME);
+        try {
+            String newName = fileName;
+            PsiDirectory directory = myDirectory;
+            if (fileName != null) {
+                final String finalFileName = fileName;
+                CreateFileAction.MkDirs mkDirs = ApplicationManager.getApplication().runWriteAction(new Computable<CreateFileAction.MkDirs>() {
                     @Override
-                    public PsiFile createFile(@NotNull String name, @NotNull String templateName) {
-                        selectedTemplateName.set(templateName);
-                        return GenerateComponentAction.this.createFile(name, templateName, dir);
-                    }
-
-                    @Override
-                    @NotNull
-                    public String getActionName(@NotNull String name, @NotNull String templateName) {
-                        return GenerateComponentAction.this.getActionName(dir, name, templateName);
+                    public CreateFileAction.MkDirs compute() {
+                        return new CreateFileAction.MkDirs(finalFileName, myDirectory);
                     }
                 });
-        if (createdElement != null) {
-            view.selectElement(createdElement);
-            postProcess(createdElement, selectedTemplateName.get(), builder.getCustomProperties());
+                newName = mkDirs.newName;
+                directory = mkDirs.directory;
+            }
+            PsiElement psiElement = FileTemplateUtil.createFromTemplate(myTemplate, newName, null, directory);
+            CommandProcessor.getInstance().executeCommand(project, new Runnable() {
+                @Override
+                public void run() {
+                    ApplicationManager.getApplication().runWriteAction(new Runnable() {
+                        @Override
+                        public void run() {
+                            PsiClass psiClass = (PsiClass) psiElement;
+                            PsiAnnotation inserted = psiClass.getModifierList().addAnnotation("dagger.Component");
+                            StringBuilder sb = new StringBuilder();
+                            for (PsiClass moduleClass: componentModules) {
+                                sb.append(moduleClass.getName() + ".class, ");
+                            }
+                            PsiAnnotation annotationFromText = JavaPsiFacade.getInstance(project).getElementFactory().createAnnotationFromText(
+                                    "@dagger.Component(modules = {"+sb.substring(0, sb.length()-2).toString()+"})", psiClass);
+
+                            PsiAnnotationParameterList parameterList = annotationFromText.getParameterList();
+                            inserted.getParameterList().add(parameterList);
+
+                        }
+                    });
+                }
+            }, null, null);
+            return psiElement;
+        } catch (Exception e) {
+            String message = e.getMessage();
+//            showErrorDialog(e);
         }
-    }
-
-    protected void postProcess(PsiFile createdElement, String templateName, Map<String, String> customProperties) {
-    }
-
-    ;
-
-    @Nullable
-    protected PsiFile createFile(String name, String templateName, PsiDirectory dir) {
         return null;
     }
-
-    ;
-
-    protected void buildDialog(Project project, PsiDirectory directory, SelectModulesDialog.Builder builder) {
-
-    }
-
-    @Nullable
-    protected String getDefaultTemplateName(@NotNull PsiDirectory dir) {
-        String property = getDefaultTemplateProperty();
-        return property == null ? null : PropertiesComponent.getInstance(dir.getProject()).getValue(property);
-    }
-
-    @Nullable
-    protected String getDefaultTemplateProperty() {
-        return null;
-    }
-
-    @Override
-    public void update(final AnActionEvent e) {
-        final DataContext dataContext = e.getDataContext();
-        final Presentation presentation = e.getPresentation();
-
-        final boolean enabled = isAvailable(dataContext);
-
-        presentation.setVisible(enabled);
-        presentation.setEnabled(enabled);
-    }
-
-    protected boolean isAvailable(DataContext dataContext) {
-        final Project project = CommonDataKeys.PROJECT.getData(dataContext);
-        final IdeView view = LangDataKeys.IDE_VIEW.getData(dataContext);
-        return project != null && view != null && view.getDirectories().length != 0;
-    }
-
-    ;
-
-    protected String getActionName(PsiDirectory directory, String newName, String templateName) {
-        return "Create compontent";
-    }
-
-    protected String getErrorTitle() {
-        return CommonBundle.getErrorTitle();
-    }
-
-
-*/
-
 }
 
