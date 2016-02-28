@@ -13,20 +13,16 @@ import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.LangDataKeys;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
-import com.intellij.openapi.command.undo.UndoUtil;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiAnnotation;
-import com.intellij.psi.PsiAnnotationParameterList;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiNameValuePair;
-import com.intellij.psi.codeStyle.JavaCodeStyleManager;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.SearchScope;
 import com.intellij.psi.search.searches.AllClassesSearch;
@@ -74,14 +70,7 @@ public class GenerateComponentAction extends AnAction implements DumbAware {
         final PsiDirectory dir = view.getOrChooseDirectory();
         if (dir == null || project == null) return;
 
-//        PsiClass createdComponentClass = JavaDirectoryService.getInstance().createClass(dir, "NewComponent", JavaTemplateUtil.INTERNAL_CLASS_TEMPLATE_NAME, false);
-        PsiClass createdComponentClass = (PsiClass) doCreate(dir, "NewComponent", project, componentModules);
-        final PsiFile createdComponentFile =
-                createdComponentClass.getContainingFile();
-
-
-//        createdComponentClass.getModifierList().addAnnotation("Module({Test.class})");
-//        createdComponentClass.getModifierList().addAnnotation("Module");
+        PsiClass createdComponentClass = (PsiClass) doCreate(dir, dg.getComponentName(), project, componentModules);
     }
 
     @NotNull
@@ -123,17 +112,21 @@ public class GenerateComponentAction extends AnAction implements DumbAware {
                         @Override
                         public void run() {
                             PsiClass psiClass = (PsiClass) psiElement;
-                            PsiAnnotation inserted = psiClass.getModifierList().addAnnotation("dagger.Component");
-                            StringBuilder sb = new StringBuilder();
-                            for (PsiClass moduleClass: componentModules) {
-                                sb.append(moduleClass.getName() + ".class, ");
+                            PsiAnnotation annotationFromText;
+                            if (componentModules.isEmpty()) {
+                                annotationFromText = JavaPsiFacade.getInstance(project).getElementFactory().createAnnotationFromText("@dagger.Component", psiClass.getModifierList());
+
+                            } else {
+                                StringBuilder sb = new StringBuilder();
+                                for (PsiClass moduleClass : componentModules) {
+                                    sb.append(moduleClass.getName() + ".class, ");
+                                }
+                                annotationFromText = JavaPsiFacade.getInstance(project).getElementFactory().createAnnotationFromText(
+                                        "@dagger.Component(modules = {" + sb.substring(0, sb.length() - 2).toString() + "})", psiClass);
                             }
-                            PsiAnnotation annotationFromText = JavaPsiFacade.getInstance(project).getElementFactory().createAnnotationFromText(
-                                    "@dagger.Component(modules = {"+sb.substring(0, sb.length()-2).toString()+"})", psiClass);
-
-                            PsiAnnotationParameterList parameterList = annotationFromText.getParameterList();
-                            inserted.getParameterList().add(parameterList);
-
+                            psiClass.getModifierList().addAfter(annotationFromText, null);
+                            FileEditorManager.getInstance(project).openFile(psiClass.getContainingFile().getVirtualFile(), false);
+                            Util.reformatClass(project, psiClass);
                         }
                     });
                 }

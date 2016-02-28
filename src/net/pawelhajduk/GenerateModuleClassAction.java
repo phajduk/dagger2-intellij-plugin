@@ -1,5 +1,6 @@
 package net.pawelhajduk;
 
+import com.intellij.codeInsight.actions.ReformatCodeProcessor;
 import com.intellij.ide.IdeBundle;
 import com.intellij.ide.actions.CreateFileFromTemplateDialog;
 import com.intellij.ide.actions.JavaCreateTemplateInPackageAction;
@@ -13,6 +14,7 @@ import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiNameHelper;
+import com.intellij.psi.codeStyle.JavaCodeStyleManager;
 import com.intellij.util.IncorrectOperationException;
 import com.intellij.util.PlatformIcons;
 import java.util.Map;
@@ -68,7 +70,9 @@ public class GenerateModuleClassAction extends JavaCreateTemplateInPackageAction
 
     protected final PsiClass doCreate(PsiDirectory dir, String className, String templateName) throws IncorrectOperationException {
         PsiClass psiClass = JavaDirectoryService.getInstance().createClass(dir, className, templateName, true);
-        psiClass.getModifierList().addAnnotation("Module");
+        psiClass.getModifierList().addAnnotation("dagger.Module");
+        Project project = dir.getProject();
+        Util.reformatClass(project, psiClass);
         return psiClass;
     }
 
