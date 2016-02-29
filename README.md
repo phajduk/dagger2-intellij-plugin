@@ -8,10 +8,6 @@ We should not try to implement better code generators which are already implemen
 ## Features
 - generating constructor annotated with @Inject
 
-## TODO/Ideas
-- generating modules (Dagger and Dagger2 compatible)
-- generating components using existing modules (Dagger2 compatible)
-
 # License
     Copyright 2016 Pawel Hajduk
 
