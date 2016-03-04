@@ -1,6 +1,6 @@
 # Dagger Intellij Plugin
 
-Dagger and Dagger2 are using JSR-330 specification to determine dependency injection in code. Main goal of this plugin is to increase productivity and happyness during programming with Daggers.
+Dagger and Dagger2 are using JSR-330 specification to determine dependency injection in code. Main goal of this plugin is to increase productivity and happiness during programming with Daggers.
 
 ## Wrapper around Intellij
 We should not try to implement better code generators which are already implemented in [IntelliJ Community][1]. This is *not* goal of this plugin. We should utilize already existing features of IntelliJ codebase and wrap them to add required features. That's why, `ConstructorJsr330` generator is just a wrapper around IntelliJ constructor generator. What this generator do under the hood is annotating such generated constructor with `@Inject` annotation.
