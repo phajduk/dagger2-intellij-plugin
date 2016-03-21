@@ -260,7 +260,6 @@ public abstract class AbstractTypeSelectionTable<T extends PsiClass, M extends T
                     Icon memberIcon = myTable.getMemberIcon(memberInfo, 0);
                     RowIcon icon = new RowIcon(3);
                     icon.setIcon(memberIcon, MEMBER_ICON_POSITION);
-                    myTable.setVisibilityIcon(memberInfo, icon);
                     setIcon(icon);
                     break;
                 }
